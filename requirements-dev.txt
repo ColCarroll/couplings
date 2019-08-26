@@ -1,4 +1,5 @@
 black
+pandoc
 pydocstyle
 pylint
 pytest
