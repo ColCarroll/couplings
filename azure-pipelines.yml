@@ -29,7 +29,7 @@ steps:
 
 - script: |
     python -m pip install pytest-azurepipelines
-    python -m pytest -xv --cov couplings .
+    python -m pytest -xv --cov couplings --cov-report xml --cov-report term .
   displayName: 'pytest'
 
 - script: |
