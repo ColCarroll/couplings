@@ -33,5 +33,5 @@ steps:
   displayName: 'pytest'
 
 - script: |
-    ./scripts lint
+    ./scripts/lint.sh
   displayName: 'lint'
