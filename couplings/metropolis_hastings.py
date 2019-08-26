@@ -62,7 +62,7 @@ def metropolis_hastings(  # pylint: disable=too-many-locals, bad-continuation
         (https://github.com/pierrejacob/unbiasedmcmc) and to Niloy Biswas'
         work with him (https://arxiv.org/abs/1905.09971).
 
-    TODO:
+    Future work:
         - Tuning (could adjust proposal covariance to a target, or as in PyMC3,
           and adjust the number of iterations to some percentile of the
           meeting time)
