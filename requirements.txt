@@ -1,0 +1,3 @@
+numpy
+scipy
+dataclasses; python_version < '3.7'

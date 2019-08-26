@@ -1,0 +1,5 @@
+black
+pydocstyle
+pylint
+pytest
+pytest-cov
