@@ -26,27 +26,29 @@ def maximal_coupling_reference(rv1, rv2):
     return rv1_draw, rv2_draw, cost
 
 
-def maximal_coupling(p, q, size=1000):
-    """Vectorized implementation of a maximal coupling between q and p.
+def maximal_coupling(rv1, rv2, size=1000):
+    """Vectorized implementation of a maximal coupling between rv2 and rv1.
 
     ~500-1000x speedup over the reference implementation
     """
-    x = p.rvs(size=size)
-    y = x.copy()
-    cost = np.ones_like(x)
+    rv1_draws = rv1.rvs(size=size)
+    rv2_draws = rv1_draws.copy()
+    cost = np.ones_like(rv1_draws)
 
-    resample = np.random.uniform(0, p.pdf(x)) > q.pdf(x)
+    resample = np.random.uniform(0, rv1.pdf(rv1_draws)) > rv2.pdf(rv1_draws)
     n_resample = resample.sum()
 
     while n_resample:
         cost[resample] += 1  # pylint: disable=unsupported-assignment-operation
-        y[resample] = q.rvs(size=n_resample)
-        resample[resample] = np.random.uniform(0, q.pdf(y[resample])) < p.pdf(y[resample])
+        rv2_draws[resample] = rv2.rvs(size=n_resample)
+        resample[resample] = np.random.uniform(0, rv2.pdf(rv2_draws[resample])) < rv1.pdf(
+            rv2_draws[resample]
+        )
         n_resample = resample.sum()
-    return np.vstack((x, y)).T, cost
+    return np.vstack((rv1_draws, rv2_draws)).T, cost
 
 
-class ReflectionMaximalCoupling:
+class ReflectionMaximalCoupling:  # pylint: disable=too-few-public-methods
     """Generates samples from a reflection maximal coupling.
 
     We use a `base_distribution` (s in the paper), and a `proposal_cov`

@@ -47,8 +47,8 @@ def _metropolis_accept(log_prob, proposal, current, current_log_prob, log_unif=N
     return return_val, new_log_prob, accept.squeeze()
 
 
-def metropolis_hastings(
-    log_prob, proposal_cov, init_x, init_y, lag=1, iters=1000, chains=128, short_circuit=False
+def metropolis_hastings(  # pylint: disable=too-many-locals, bad-continuation
+    *, log_prob, proposal_cov, init_x, init_y, lag=1, iters=1000, chains=128, short_circuit=False
 ):
     """Sample from a density function using coupled Metropolis-Hastings.
 
@@ -84,9 +84,11 @@ def metropolis_hastings(
     iters : int
         How many iterations the *first* chain will have (the second has iters - lag)
     short_circuit : bool
-        Set to True to return immediately after the chains meet. Note that `iters`
-        is still respected to avoid an unterminating loop, so set it very high
-        to simulate a true `while` loop!
+        Set to True to return immediately after *all* the chains meet. Due to
+        implementation details, a proper array is still returned, even if most
+        of the meeting times are very small. Note that `iters` is still
+        respected to avoid an unterminating loop, so set it very high to
+        simulate a true `while` loop!
 
     Returns
     -------
@@ -112,20 +114,21 @@ def metropolis_hastings(
     y_log_prob = np.atleast_1d(log_prob(init_y))
 
     # Run for the first `lag` steps
-    # Vectorize the RNG
+    # Vectorized RNG
     samples = np.random.multivariate_normal(np.zeros(dim), proposal_cov, size=(lag, chains))
     for idx, sample in enumerate(samples, 1):
         x_proposal = sample + data.x[idx - 1]
         data.x[idx], x_log_prob, data.x_accept[idx] = _metropolis_accept(
             log_prob, x_proposal, data.x[idx - 1], x_log_prob
         )
+
     # Coupled sampling
     base_distribution = st.multivariate_normal(np.zeros(dim), np.eye(dim))
     rmc = ReflectionMaximalCoupling(base_distribution, proposal_cov)
 
-    # Vectorize the RNG
+    # Vectorized RNG
     log_unifs = np.log(np.random.rand(iters - lag - 1, chains))
-    for t, log_unif in enumerate(log_unifs, lag + 1):
+    for t, log_unif in enumerate(log_unifs, lag + 1):  # pylint: disable=invalid-name
         x_proposal, y_proposal = rmc(data.x[t - 1], data.y[t - lag - 1], chains)
 
         data.x[t], x_log_prob, data.x_accept[t] = _metropolis_accept(
@@ -138,15 +141,15 @@ def metropolis_hastings(
         met = met.reshape((met.shape[0], -1)).all(axis=1)
         data.meeting_time[met * (data.meeting_time < 0)] = t + 1
         if short_circuit and met.all():
-            data.x = data.x[: t + 1]
-            data.y = data.y[: t - lag + 1]
+            data.x = data.x[: t + 1]  # pylint: disable=invalid-name
+            data.y = data.y[: t - lag + 1]  # pylint: disable=invalid-name
             data.x_accept = data.x_accept[: t + 1]
             data.y_accept = data.y_accept[: t - lag + 1]
             return data
     return data
 
 
-def unbiased_estimator(data, fn, burn_in):
+def unbiased_estimator(data, func, burn_in):
     """Compute an unbiased estimator of a function using coupled data.
 
     This is an implementation of Equation 2.1
@@ -158,8 +161,8 @@ def unbiased_estimator(data, fn, burn_in):
     ----------
     data : CoupledData
         Results from a coupled MCMC experiment
-    fn : callable
-        Should accept an array and return an array with the same shape
+    func : callable
+        Should accept an array and return an array with the same shape[0]
     burn_in : int
         This is k in the paper, and are discarded samples from the start
         of the experiment
@@ -176,8 +179,8 @@ def unbiased_estimator(data, fn, burn_in):
     slicer = np.arange(burn_in + 1, max_idx)
     split_idxs = np.tile(slicer, (shape[1], 1)).T
     ratio = np.minimum(1, (split_idxs - burn_in) / (len(data.x) - burn_in + 1))
-    mult = fn(data.x[slicer]) - fn(data.y[slicer - data.lag])
+    mult = func(data.x[slicer]) - func(data.y[slicer - data.lag])
     mult[split_idxs > data.meeting_time] = 0
-    bias_correction = np.mean(np.expand_dims(ratio, -1) * mult, axis=0)
-    mcmc_average = fn(data.x[burn_in:]).mean(axis=0)
+    bias_correction = np.sum(np.expand_dims(ratio, -1) * mult, axis=0)
+    mcmc_average = func(data.x[burn_in:]).mean(axis=0)
     return mcmc_average, bias_correction

@@ -47,7 +47,15 @@ def test_metropolis_hastings_scalar(chains):
     rv = st.norm()
     log_prob = rv.logpdf
     init_x, init_y = 0.5, 0.5
-    data = metropolis_hastings(log_prob, 10, init_x, init_y, lag=3, iters=20, chains=chains)
+    data = metropolis_hastings(
+        log_prob=log_prob,
+        proposal_cov=10,
+        init_x=init_x,
+        init_y=init_y,
+        lag=3,
+        iters=20,
+        chains=chains,
+    )
     assert (data.x[0] == init_x).all()
     assert (data.y[0] == init_y).all()
 
@@ -67,7 +75,13 @@ def test_metropolis_hastings_vec(chains):
     log_prob = rv.logpdf
     init_x, init_y = rv.rvs(size=2)
     data = metropolis_hastings(
-        log_prob, 10 * np.eye(dim), init_x, init_y, lag=1, iters=20, chains=chains
+        log_prob=log_prob,
+        proposal_cov=10 * np.eye(dim),
+        init_x=init_x,
+        init_y=init_y,
+        lag=1,
+        iters=20,
+        chains=chains,
     )
     assert (data.x[0] == init_x).all()
     assert (data.y[0] == init_y).all()
@@ -84,7 +98,14 @@ def test_metropolis_hastings_short_circuit():
     rv = st.norm()
     log_prob = rv.logpdf
     init_x, init_y = 0.5, 0.5
-    data = metropolis_hastings(log_prob, 10, init_x, init_y, iters=200, short_circuit=True)
+    data = metropolis_hastings(
+        log_prob=log_prob,
+        proposal_cov=10,
+        init_x=init_x,
+        init_y=init_y,
+        iters=200,
+        short_circuit=True,
+    )
     assert (data.x[0] == init_x).all()
     assert (data.y[0] == init_y).all()
 
@@ -102,7 +123,14 @@ def test_unbiased_estimator_vec():
     rv = st.multivariate_normal(np.zeros(dim), np.eye(dim))
     log_prob = rv.logpdf
     init_x, init_y = rv.rvs(size=2)
-    data = metropolis_hastings(log_prob, 10 * np.eye(dim), init_x, init_y, iters=20, chains=chains)
+    data = metropolis_hastings(
+        log_prob=log_prob,
+        proposal_cov=10 * np.eye(dim),
+        init_x=init_x,
+        init_y=init_y,
+        iters=20,
+        chains=chains,
+    )
     mcmc_estimate, bias_correction = unbiased_estimator(data, lambda x: x, burn_in=10)
     assert mcmc_estimate.shape == (chains, dim)
     assert bias_correction.shape == (chains, dim)
@@ -116,10 +144,18 @@ def test_unbiased_estimator_scalar():
     rv = st.norm()
     log_prob = rv.logpdf
     init_x, init_y = 0.5, 0.5
-    data = metropolis_hastings(log_prob, 10, init_x, init_y, lag=3, iters=20, chains=chains)
+    data = metropolis_hastings(
+        log_prob=log_prob,
+        proposal_cov=10,
+        init_x=init_x,
+        init_y=init_y,
+        lag=3,
+        iters=20,
+        chains=chains,
+    )
     mcmc_estimate, bias_correction = unbiased_estimator(data, lambda x: x, burn_in=0)
     assert mcmc_estimate.shape == (chains, 1)
     assert bias_correction.shape == (chains, 1)
     estimate = mcmc_estimate + bias_correction
-    assert (-3 < estimate).all()
-    assert (estimate < 3).all()
+    assert (-4 < estimate).all()
+    assert (estimate < 4).all()
