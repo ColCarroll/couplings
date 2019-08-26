@@ -70,21 +70,36 @@ class ReflectionMaximalCoupling:
         self.base_distribution = base_distribution
         # np.atleast_2d protects against 1d case
         self.cholesky = np.linalg.cholesky(np.atleast_2d(proposal_cov))
+        self.dim = self.cholesky.shape[0]
 
-    def __call__(self, mu1, mu2):
+    def __call__(self, mu1, mu2, chains):
         """Produce a single sample from the coupling."""
-        base_draw_x = self.base_distribution.rvs()
+        if not hasattr(mu1, "shape") or mu1.shape == (self.dim,):
+            mu1 = np.tile(mu1, (chains, 1))
+        if not hasattr(mu2, "shape") or mu2.shape == (self.dim,):
+            mu2 = np.tile(mu2, (chains, 1))
+
+        transformed_diff = np.linalg.solve(self.cholesky, np.atleast_2d(mu1 - mu2).T).T
+        base_draw_x = self.base_distribution.rvs(size=chains).reshape((chains, self.dim))
+
+        base_draw_y = base_draw_x + transformed_diff
         # np.atleast_1d protects against 1d case
-        transformed_diff = np.linalg.solve(self.cholesky, np.atleast_1d(mu1 - mu2))
-        ratio = self.base_distribution.pdf(
-            base_draw_x + transformed_diff
-        ) / self.base_distribution.pdf(base_draw_x)
-        if np.random.rand() < ratio:
-            base_draw_y = base_draw_x + transformed_diff
-        else:
-            unit_diff = transformed_diff / np.linalg.norm(transformed_diff)
-            base_draw_y = base_draw_x - 2 * np.dot(unit_diff.T, base_draw_x) * unit_diff
-        return mu1 + self.cholesky.dot(base_draw_x), mu2 + self.cholesky.dot(base_draw_y)
+        ratio = (
+            self.base_distribution.logpdf(base_draw_x + transformed_diff)
+            - self.base_distribution.logpdf(base_draw_x)
+        ).reshape((chains,))
+        couple = np.log(np.random.rand(chains)) < ratio
+        if not couple.all():
+            unit_diff = transformed_diff[~couple] / np.expand_dims(
+                np.linalg.norm(transformed_diff[~couple], axis=-1), -1
+            )
+            base_draw_y[~couple] = (
+                base_draw_x[~couple]
+                - 2
+                * np.expand_dims((unit_diff * base_draw_x[~couple]).sum(axis=-1), -1)
+                * unit_diff
+            )
+        return mu1 + self.cholesky.dot(base_draw_x.T).T, mu2 + self.cholesky.dot(base_draw_y.T).T
 
 
 def reflection_maximal_coupling(base_distribution, proposal_cov, mu1, mu2):

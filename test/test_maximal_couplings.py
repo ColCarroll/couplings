@@ -1,5 +1,6 @@
 """Tests for maximal_couplings.py"""
 import numpy as np
+import pytest
 import scipy.stats as st
 
 from couplings import (
@@ -71,33 +72,37 @@ def test_maximal_coupling_high_cost():
     assert min(costs) == 1
 
 
-def test_ReflectionMaximalCoupling():
+@pytest.mark.parametrize("chains", (1, 10))
+def test_ReflectionMaximalCoupling(chains):
     rmc = ReflectionMaximalCoupling(st.norm(), 1)
 
     # make sure different means give separated points, and
     # that the class can be reused
-    x, y = rmc(-4, 4)
-    assert x < y
-    x, y = rmc(4, -4)
-    assert x > y
+    x, y = rmc(-4, 4, chains)
+    assert x.shape[0] == chains
+    assert (x < y).all()
+    x, y = rmc(4, -4, chains)
+    assert (x > y).all()
 
 
-def test_ReflectionMaximalCoupling_same():
+@pytest.mark.parametrize("chains", (1, 10))
+def test_ReflectionMaximalCoupling_same(chains):
     rmc = ReflectionMaximalCoupling(st.norm(), 1)
-    x, y = rmc(4, 4)
-    assert x == y
+    x, y = rmc(4, 4, chains)
+    assert (x == y).all()
 
 
-def test_ReflectionMaximalCoupling_3d():
+@pytest.mark.parametrize("chains", (1, 10))
+def test_ReflectionMaximalCoupling_3d(chains):
     # Make sure this works with high dimensional distributions
     rmc = ReflectionMaximalCoupling(st.multivariate_normal(np.zeros(3), np.eye(3)), np.eye(3))
 
     # make sure different means give separated points, and
     # that the class can be reused
-    x, y = rmc(-4 * np.ones(3), 4 * np.ones(3))
+    x, y = rmc(-4 * np.ones(3), 4 * np.ones(3), chains)
     assert (x < y).all()
 
-    x, y = rmc(4 * np.ones(3), -4 * np.ones(3))
+    x, y = rmc(4 * np.ones(3), -4 * np.ones(3), chains)
     assert (x > y).all()
 
 

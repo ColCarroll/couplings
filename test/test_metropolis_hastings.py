@@ -1,5 +1,6 @@
 """Tests for metropolis_hastings.py"""
 import numpy as np
+import pytest
 import scipy.stats as st
 
 from couplings.metropolis_hastings import (
@@ -9,65 +10,72 @@ from couplings.metropolis_hastings import (
 )
 
 
-def test__metropolis_accept():
+@pytest.mark.parametrize("chains", (1, 10))
+def test__metropolis_accept(chains):
     logpdf = st.norm().logpdf
 
-    current = 1
+    current = np.ones(chains)
     current_log_prob = logpdf(current)
 
     # Deterministic accept
     new, new_log_prob, accept = _metropolis_accept(
-        logpdf, current, current, current_log_prob, log_unif=np.log(0.99)
+        logpdf, current, current, current_log_prob, log_unif=np.log(0.99 * np.ones(chains))
     )
-    assert accept
-    assert new == current
-    assert new_log_prob == current_log_prob
+    assert np.all(accept)
+    assert np.all(new == current)
+    assert np.all(new_log_prob == current_log_prob)
 
     # Deterministic reject
     new, new_log_prob, accept = _metropolis_accept(
-        logpdf, current, current, current_log_prob, log_unif=np.log(1.01)
+        logpdf, current, current, current_log_prob, log_unif=np.log(1.01 * np.ones(chains))
     )
-    assert not accept
-    assert new == current
-    assert new_log_prob == current_log_prob
+    assert np.all(~accept)
+    assert np.all(new == current)
+    assert np.all(new_log_prob == current_log_prob)
 
     # Always accept a higher probability point
-    new, new_log_prob, accept = _metropolis_accept(logpdf, 0, current, current_log_prob)
-    assert accept
-    assert new == 0.0
-    assert new_log_prob != current_log_prob
+    new, new_log_prob, accept = _metropolis_accept(
+        logpdf, np.zeros(chains), current, current_log_prob
+    )
+    assert np.all(accept)
+    assert np.all(new == 0.0)
+    assert np.all(new_log_prob != current_log_prob)
 
 
-def test_metropolis_hastings_scalar():
+@pytest.mark.parametrize("chains", (1, 10))
+def test_metropolis_hastings_scalar(chains):
     rv = st.norm()
     log_prob = rv.logpdf
     init_x, init_y = 0.5, 0.5
-    data = metropolis_hastings(log_prob, 10, init_x, init_y, lag=3, iters=20)
+    data = metropolis_hastings(log_prob, 10, init_x, init_y, lag=3, iters=20, chains=chains)
     assert (data.x[0] == init_x).all()
     assert (data.y[0] == init_y).all()
 
     assert data.x.shape[0] == 20
     assert data.y.shape[0] == 20 - 3
 
-    assert data.meeting_time < 20
+    assert (data.meeting_time < 20).all()
     assert 0 <= data.x_accept.mean() <= 1.0
     assert 0 <= data.y_accept.mean() <= 1.0
 
 
-def test_metropolis_hastings_vec():
-    dim = 10
+@pytest.mark.parametrize("chains", (1, 10))
+def test_metropolis_hastings_vec(chains):
+    dim = 8
     rv = st.multivariate_normal(np.zeros(dim), np.eye(dim))
 
     log_prob = rv.logpdf
     init_x, init_y = rv.rvs(size=2)
-    data = metropolis_hastings(log_prob, 10 * np.eye(dim), init_x, init_y, lag=1, iters=20)
+    data = metropolis_hastings(
+        log_prob, 10 * np.eye(dim), init_x, init_y, lag=1, iters=20, chains=chains
+    )
     assert (data.x[0] == init_x).all()
     assert (data.y[0] == init_y).all()
 
     assert data.x.shape[0] == 20
     assert data.y.shape[0] == 20 - 1
 
-    assert data.meeting_time < 20
+    assert (data.meeting_time < 20).all()
     assert 0 <= data.x_accept.mean() <= 1.0
     assert 0 <= data.y_accept.mean() <= 1.0
 
@@ -80,36 +88,38 @@ def test_metropolis_hastings_short_circuit():
     assert (data.x[0] == init_x).all()
     assert (data.y[0] == init_y).all()
 
-    assert data.x.shape[0] == data.meeting_time
-    assert data.y.shape[0] == data.meeting_time - 1
+    assert data.x.shape[0] == data.meeting_time.max()
+    assert data.y.shape[0] == data.meeting_time.max() - 1
 
-    assert data.meeting_time < 20
+    assert (data.meeting_time < 20).all()
     assert 0 <= data.x_accept.mean() <= 1.0
     assert 0 <= data.y_accept.mean() <= 1.0
 
 
 def test_unbiased_estimator_vec():
+    chains = 12
     dim = 10
     rv = st.multivariate_normal(np.zeros(dim), np.eye(dim))
     log_prob = rv.logpdf
     init_x, init_y = rv.rvs(size=2)
-    data = metropolis_hastings(log_prob, 10 * np.eye(dim), init_x, init_y, iters=20)
+    data = metropolis_hastings(log_prob, 10 * np.eye(dim), init_x, init_y, iters=20, chains=chains)
     mcmc_estimate, bias_correction = unbiased_estimator(data, lambda x: x, burn_in=10)
-    assert mcmc_estimate.shape == (dim,)
-    assert bias_correction.shape == (dim,)
+    assert mcmc_estimate.shape == (chains, dim)
+    assert bias_correction.shape == (chains, dim)
     estimate = mcmc_estimate + bias_correction
     assert (-3 < estimate).all()
     assert (estimate < 3).all()
 
 
 def test_unbiased_estimator_scalar():
+    chains = 10
     rv = st.norm()
     log_prob = rv.logpdf
     init_x, init_y = 0.5, 0.5
-    data = metropolis_hastings(log_prob, 10, init_x, init_y, lag=3, iters=20)
+    data = metropolis_hastings(log_prob, 10, init_x, init_y, lag=3, iters=20, chains=chains)
     mcmc_estimate, bias_correction = unbiased_estimator(data, lambda x: x, burn_in=0)
-    assert mcmc_estimate.shape == (1,)
-    assert bias_correction.shape == (1,)
+    assert mcmc_estimate.shape == (chains, 1)
+    assert bias_correction.shape == (chains, 1)
     estimate = mcmc_estimate + bias_correction
     assert (-3 < estimate).all()
     assert (estimate < 3).all()
