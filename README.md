@@ -1,6 +1,7 @@
 # Unbiased Markov chain Monte Carlo with couplings
 
 [![Build Status](https://dev.azure.com/colcarroll/couplings/_apis/build/status/ColCarroll.couplings?branchName=master)](https://dev.azure.com/colcarroll/couplings/_build/latest?definitionId=1&branchName=master)
+![Azure DevOps coverage](https://img.shields.io/azure-devops/coverage/colcarroll/couplings/1)
 
 A library for exploring coupled MCMC and to support essays on it.
 

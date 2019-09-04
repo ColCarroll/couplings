@@ -93,7 +93,9 @@ def metropolis_hastings(  # pylint: disable=too-many-locals, bad-continuation
     Returns
     -------
     CoupledData
-
+        Note that the samples (data.x, data.y) are of shape
+        (iters, chains, dims) and (iters - lag, chains, dims),
+        respectively
     """
     proposal_cov = np.atleast_2d(proposal_cov)
     dim = proposal_cov.shape[0]
@@ -175,12 +177,14 @@ def unbiased_estimator(data, func, burn_in):
 
     """
     shape = data.x.shape
+    normalizer = shape[0] - burn_in + 1
     max_idx = shape[0] if data.meeting_time.min() == -1 else data.meeting_time.max() + 1
-    slicer = np.arange(burn_in + 1, max_idx)
+    slicer = np.arange(burn_in + 1, max_idx - 1)
     split_idxs = np.tile(slicer, (shape[1], 1)).T
-    ratio = np.minimum(1, (split_idxs - burn_in) / (len(data.x) - burn_in + 1))
+    ratio = np.minimum(1, (split_idxs - burn_in) / normalizer)
     mult = func(data.x[slicer]) - func(data.y[slicer - data.lag])
     mult[split_idxs > data.meeting_time] = 0
+
     bias_correction = np.sum(np.expand_dims(ratio, -1) * mult, axis=0)
-    mcmc_average = func(data.x[burn_in:]).mean(axis=0)
+    mcmc_average = func(data.x[burn_in:]).sum(axis=0) / normalizer
     return mcmc_average, bias_correction
