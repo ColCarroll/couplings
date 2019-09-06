@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Unbiased MCMC with Couplings</title>
+    <link rel="stylesheet" href="css/tufte.css" />
+    <link rel="stylesheet" href="css/latex.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async>
+    </script>
+    <style type="text/css">
+        /* Overrides for Google-code-prettify */
+        pre.prettyprint {
+            font-family: Consolas, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New;
+            padding: 10px;
+            padding-left: 1.5% !important;
+            border: 1px solid #196786;
+            background: aliceblue;
+        }
+    </style>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js" async></script>
+
+</head>
+
+<body>
+    <article>
+        <div class=title style="display: inline-block">
+            <h1>Unbiased MCMC with Couplings</h1>
+            <h2 class="subtitle">A Research Implementation and Interactive Environment</h2>
+            <p class="subtitle"><a href="https://colindcarroll.com">Colin Carroll</a></p>
+        </div>
+        <section>
+            <h2>Introduction</h2>
+            <p>This repo is both a pip-installable library, and it generates <a
+                    href="https://colcarroll.github.io/couplings/">this essay</a> of the same name, which is meant as a
+                reading companion to, and implementation of, the papers.</p>
+
+            <p>Install and experiment with</p>
+            <pre class="code-prettify lang-bash">pip install git+git://github.com/colcarroll/couplings.git</pre>
+        </section>
+
+        <section>
+            <h2>Table of Contents</h2>
+            <ol>
+                <li><a href="maximal_couplings.html">Maximal Couplings</a> (IN PROGRESS): What is a coupling? What are
+                    some properties of couplings?</li>
+                <li>Reflection Maximal Couplings (TODO)</li>
+                <li>Unbiased Metropolis-Hastings with Couplings (TODO)</li>
+                <li>Unbiased Estimator (TODO)</li>
+                <li>Unbiased Hamiltonian Monte Carlo with Couplings (IN PROGRESS)</li>
+            </ol>
+        </section>
+        <section>
+            <h2>References, Thanks</h2>
+            <p>Many thanks of course to the authors below for interesting papers, and to the authors of the open source
+                libraries used here for the useful code. Some ideas in the implementation are due to conversations and
+                code from both the <a href="https://docs.pymc.io/">PyMC developers</a>, and the <a
+                    href="https://www.tensorflow.org/probability">TensorFlow Probability</a> team. Thanks especially
+                to Pierre Jacob for helpful conversations and encouragement</p>
+            <h3>Primary References</h3>
+            <ul>
+                <li><a href="http://arxiv.org/abs/1708.03625">Unbiased Markov Chain Monte Carlo with Couplings.</a>
+                    Pierre E. Jacob, John O’Leary, and Yves F. Atchadé. ArXiv:1708.03625 [Stat], August 11, 2017.</li>
+                <li><a href="http://arxiv.org/abs/1709.00404">Unbiased Hamiltonian Monte Carlo with Couplings.</a>
+                    Jeremy Heng and Pierre E. Jacob. ArXiv:1709.00404 [Stat], September 1, 2017.</li>
+            </ul>
+            <h3>Secondary References</h3>
+            <ul>
+                <li><a href="http://arxiv.org/abs/1905.09971">Estimating Convergence of Markov Chains with L-Lag
+                        Couplings.</a> Niloy Biswas and Pierre E. Jacob. ArXiv:1905.09971 [Stat], May 23, 2019.</li>
+                <li><a href="http://arxiv.org/abs/1711.05337">Geometric Integrators and the Hamiltonian Monte Carlo
+                        Method.</a> Nawaf Bou-Rabee and Jesús María Sanz-Serna. ArXiv:1711.05337 [Math, Stat],
+                    November 14, 2017. </li>
+            </ul>
+            <h3>Code References</h3>
+            <ul>
+                <li>Eric Jones, Travis Oliphant, Pearu Peterson, <em>et al.</em> <a href="http://www.scipy.org">SciPy:
+                        Open Source Scientific Tools for Python</a>, 2001-</li>
+                <li>Stéfan van der Walt, S. Chris Colbert and Gaël Varoquaux. <a
+                        href="http://dx.doi.org/10.1109/MCSE.2011.37">The NumPy Array: A Structure for Efficient
+                        Numerical Computation</a>, Computing in Science &amp; Engineering, <strong>13</strong>, 22-30
+                    (2011)</li>
+                <li>John D. Hunter. <a href="https://doi.org/10.1109/MCSE.2007.55">Matplotlib: A 2D Graphics
+                        Environment</a>, Computing in Science &amp; Engineering, <strong>9</strong>, 90-95 (2007).
+                </li>
+            </ul>
+        </section>
+    </article>
+</body>
+<footer>
+    <!-- <script type="text/javascript">
+        document._EUGO = 'fda5b08c23a01551b892';
+        document.head.appendChild(function () {
+            var s = document.createElement('script');
+            s.src = 'https://eugo.io/eugo.js';
+            s.async = 1;
+            return s;
+        }());
+    </script> -->
+</footer>
+
+</html>
