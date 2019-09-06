@@ -1,9 +1,50 @@
 """Miscellaneous utilities."""
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.stats as st
+from scipy.special import logsumexp
 
 
-__all__ = ["total_variation", "plot_coupled_chains", "wasserstein"]
+__all__ = ["total_variation", "plot_coupled_chains", "wasserstein", "mixture_of_gaussians"]
+
+
+class mixture_of_gaussians:
+    """Mixture of Gaussians with the given parameters."""
+
+    def __init__(self, params, probs):
+        """Construct normal distributions.
+
+        Parameters
+        ----------
+        params : list of tuples
+            loc and scale passed to each st.norm
+        probs : list of floats between 0 and 1
+            probability of each mixture component
+
+        """
+        self._probs = np.array(probs)
+        self._logp = np.log(self._probs).reshape((len(self._probs), 1))
+        self._rvs = [st.norm(*param) for param in params]
+
+    def rvs(self, size=1):
+        """Sample from the random variable."""
+        vals = np.concatenate(
+            [
+                rv.rvs(size=size_)
+                for rv, size_ in zip(self._rvs, np.random.multinomial(size, self._probs))
+            ]
+        )
+        np.random.shuffle(vals)
+        return vals
+
+    def pdf(self, x):
+        """Compute the pdf of the distribution at a point."""
+        return self._probs.dot([rv.pdf(x.squeeze()) for rv in self._rvs])
+
+    def logpdf(self, x):
+        """Compute the log probability of the distribution at a point."""
+        parts = self._logp + np.atleast_2d([rv.logpdf(x.squeeze()) for rv in self._rvs])
+        return logsumexp(parts, axis=0)
 
 
 def _tv_pointwise(data):
