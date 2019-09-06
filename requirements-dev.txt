@@ -1,4 +1,5 @@
 black
+ipykernel
 jupyter
 nbconvert
 pandoc
