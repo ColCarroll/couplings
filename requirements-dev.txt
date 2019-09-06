@@ -1,4 +1,6 @@
 black
+jupyter
+nbconvert
 pandoc
 pydocstyle
 pylint

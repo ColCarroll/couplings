@@ -94,9 +94,11 @@ def plot_coupled_chains(data, *, max_chains=8):  # pylint: disable=too-many-loca
 
     """
     chains = min(max_chains, data.x.shape[1])
+    dim = data.x.shape[2]
+    ncols = 2 if dim == 1 else 4
     _, axes = plt.subplots(
-        nrows=chains // 2,
-        ncols=2,
+        nrows=chains // ncols,
+        ncols=ncols,
         figsize=(20, chains),
         sharex=True,
         sharey=True,
@@ -114,7 +116,7 @@ def plot_coupled_chains(data, *, max_chains=8):  # pylint: disable=too-many-loca
             meeting_time = iters
 
         after_meet = np.array([[], []])
-        if data.x.shape[2] == 1:
+        if dim == 1:
             y_line = np.vstack(
                 (
                     np.arange(data.lag, min(meeting_time + data.lag, iters)),
