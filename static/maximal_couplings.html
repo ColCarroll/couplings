@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Maximal Couplings</title>
+    <link rel="stylesheet" href="css/tufte.css" />
+    <link rel="stylesheet" href="css/latex.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async>
+    </script>
+    <style type="text/css">
+        /* Overrides for Google-code-prettify */
+        pre.prettyprint {
+            font-family: Consolas, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New;
+            padding: 10px;
+            padding-left: 1.5% !important;
+            border: 1px solid #196786;
+            background: aliceblue;
+        }
+    </style>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js" async></script>
+
+</head>
+
+<body>
+    <article>
+        <div class=title style="display: inline-block">
+            <h1>Maximal Couplings</h1>
+            <h2 class="subtitle">Making your joint distributions look as much like lines as possible</h2>
+            <p class="subtitle"><a href="https://colindcarroll.com">Colin Carroll</a></p>
+        </div>
+        <section>
+            <h2>Definition</h2>
+            <blockquote>
+                <p>
+                    A maximal coupling between two distributions \(p\) and \(q\) on a space \(X\) is a distribution of a
+                    pair of random variables \((X, Y)\) that maximizes \(P(X = Y)\), subject to the marginal
+                    constraints \(X \sim p\) and \(Y \sim q\).
+                </p>
+                <footer><a href="http://arxiv.org/abs/1708.03625">Unbiased Markov Chain Monte Carlo with Couplings.</a>
+                    Jacob, O’Leary, and Atchadé.
+                </footer>
+            </blockquote>
+            <p>A few things about this definition we should pick out before going forwards:
+                <ol>
+                    <li>This is a statement about making a <em>joint distribution</em> given two <em>marginal
+                            distributions</em>. For a great introduction to how to manipulate correlations while
+                        specifying marginal distributions, see <a
+                            href="https://twiecki.io/blog/2018/05/03/copulas/">Thomas Wiecki's nice post on copulas
+                            here</a>.</li>
+                    <li>The definition makes no claim that a maximal coupling is unique, and in fact, it is not.</li>
+                    <li>This maximizes \(P(X=Y)\), so if we are thinking about applications, we had better make sure
+                        that \(X = Y\) even makes sense: \(p\) and \(q\) should be distributions over the same
+                        <em>stuff</em>.</li>
+                </ol>
+            </p>
+        </section>
+
+        <section>
+            <h2>Sampling from a maximal coupling</h2>
+            <p>It helps the intuition to see a few examples of maximal couplings. Each figure includes the average
+                "cost" of sampling from the joint distribution, as described in the paper.<label for="cost"
+                    class="margin-toggle sidenote-number"></label></span><input type="checkbox" id="cost"
+                    class="margin-toggle" /><span class="sidenote">One unit of "cost" is a draw from either
+                    distribution, and a (log) probability evaluation from both distributions. So one draw, two
+                    evaluations.</span></p>
+            <p>Using <a href="https://github.com/ColCarroll/couplings">this Python library</a>, these distributions are
+                generated using code like</p>
+            <pre class="code prettyprint lang-py">import scipy.stats as st
+from couplings import maximal_coupling
+
+q = st.norm(0, 1)
+p = st.norm(1, 1)
+
+points, cost = maximal_coupling(p, q, size=5_000)</pre>
+            <p>See below for details of what <code>maximal_coupling</code> is actually doing.</p>
+            <figure>
+                <label for="mc-same" class="margin-toggle">&#8853;</label><input type="checkbox" id="mc-same"
+                    class="margin-toggle" /><span class="marginnote">This is a maximal coupling of two standard normal
+                    distributions. It makes sense that if the marginal distributions are the same and you want to
+                    maximize \(P(X=Y)\), then every draw from the joint distribution has the same value for \(X\)
+                    and \(Y\).</span>
+                <img src="img/maximal_coupling_same.png" alt="Maximal coupling of two standard normals" />
+            </figure>
+
+            <figure>
+                <label for="mc-diff-mean" class="margin-toggle">&#8853;</label><input type="checkbox" id="mc-diff-mean"
+                    class="margin-toggle" /><span class="marginnote">This is a maximal coupling of two normal
+                    distributions with different means, but the same standard deviation, and it is starting to get
+                    interesting.</span>
+                <img src="img/maximal_coupling_diff_mean.png"
+                    alt="Maximal coupling of two normals with different means" />
+            </figure>
+
+            <figure>
+                <label for="mc-diff-var" class="margin-toggle">&#8853;</label><input type="checkbox" id="mc-diff-var"
+                    class="margin-toggle" /><span class="marginnote">This is a maximal coupling of two normal
+                    distributions with different standard deviations, but the same mean. Despite the somewhat bizarre
+                    looking joint distributions, note that this satisfies the definition of a maximal coupling.</span>
+                <img src="img/maximal_coupling_diff_var.png"
+                    alt="Maximal coupling of two normals with different standard deviations" />
+            </figure>
+
+            <figure>
+                <label for="mc-diff-var-mean" class="margin-toggle">&#8853;</label><input type="checkbox"
+                    id="mc-diff-var-mean" class="margin-toggle" /><span class="marginnote">Here we have a different
+                    mean <em>and</em> a different variance.</span>
+                <img src="img/maximal_coupling_diff_var_mean.png"
+                    alt="Maximal coupling of two normals with different standard deviations and means" />
+            </figure>
+
+            <figure>
+                <label for="mc-diff-dists" class="margin-toggle">&#8853;</label><input type="checkbox"
+                    id="mc-diff-dists" class="margin-toggle" /><span class="marginnote">This is a maximal coupling of
+                    two distributions that have different support: the normal distribution could be any real number, but
+                    the gamma distribution is always positive.</span>
+                <img src="img/maximal_coupling_diff_dists.png"
+                    alt="Maximal coupling of a normal and a gamma distribution" />
+            </figure>
+
+            <figure>
+                <label for="mc-diff-dists-unif" class="margin-toggle">&#8853;</label><input type="checkbox"
+                    id="mc-diff-dists-unif" class="margin-toggle" /><span class="marginnote">This is a maximal coupling
+                    of a uniform distribution and a normal distribution. I just thought this looked neat.</span>
+                <img src="img/maximal_coupling_diff_dists_unif.png"
+                    alt="Maximal coupling of a normal and a uniform distribution" />
+            </figure>
+        </section>
+
+        <section>
+            <h2>How does it work?</h2>
+            <p>Here is a pseudocode implementation that happens to work in Python, and corresponds to algorithm 2 in <a
+                    href="http://arxiv.org/abs/1708.03625">Unbiased Markov Chain Monte Carlo with Couplings.</a></p>
+            <p>
+                <label for="more-cost" class="margin-toggle">&#8853;</label><input type="checkbox" id="more-cost"
+                    class="margin-toggle" /><span class="marginnote">In the actual library note that this is all <a
+                        href="https://colindcarroll.com/2019/08/18/very-parallel-mcmc-sampling/">vectorized</a>, and the
+                    code is optimized a bit more. We also keep track of the cost of running the algorithm: the first
+                    return takes one sample and two pdf evaluations, which is one "cost" unit. The <code>while</code>
+                    loop also takes one "cost" each time through.</span>
+            </p>
+            <pre class="code prettyprint lang-py">def maximal_coupling(p, q):
+    X = p.sample()
+    W = rand() * p(X)
+    if W < q(X):
+        return X, X
+    else:
+        while True:
+            Y = q.sample()
+            W = rand() * q(Y)
+            if W > p(Y):
+                return X, Y
+</pre>
+            <p> </p>
+            <p>Also, you can see why we might expect that \(X = Y\) at least some of the time due to the first
+                <code>if</code> statement above, though that is certainly not a proof that this algorithm is correct.
+                The interested/motivated reader can find a proof that this creates a maximal coupling by looking at the
+                <a href="http://arxiv.org/abs/1708.03625">reference above</a>. </p>
+        </section>
+        <section>
+            <h2>Other maximal couplings</h2>
+            <p> In the above algorithm, conditional on \(X \ne Y\), \(X\) and \(Y\) are independent. For reasons that
+                are helpful later, we might instead use a maximal coupling that correlates \(X\) and \(Y\). It turns out
+                to be particularly useful in the context of Metropolis-Hastings, to specialize this algorithm to the
+                special case where \(p\) and \(q\) are given by $$
+                \begin{eqnarray}
+                p &=& \mathcal{N}(\mu_1, \Sigma) \\
+                q &=& \mathcal{N}(\mu_2, \Sigma) \\
+                \end{eqnarray}
+                $$
+                Specifically, in this case, \(\Sigma\) is the covariance matrix for the proposal distribution, and
+                \(\mu_j\) is the current position of the two "coupled" chains. It is not important to understand that
+                yet.
+            </p>
+            <p>This is called a <em>reflection maximal coupling</em><label for="rmc"
+                    class="margin-toggle sidenote-number"></label></span><input type="checkbox" id="rmc"
+                    class="margin-toggle" /><span class="sidenote">This is also implemented in the <code>coupling</code>
+                    library, in a very efficient (vectorized) manner. The implementation is pretty tricky, but well
+                    tested and fast, since it forms the backbone for much of the unbiased MCMC part of the
+                    library.</span>, and looks even more ridiculous. Note that the distributions need to be
+                (multivariate) normals, and the covariances (standard deviations) have to be the same, so we are just
+                changing the means.</p>
+
+            <figure>
+                <label for="rmc-0-1" class="margin-toggle">&#8853;</label><input type="checkbox" id="rmc-0-1"
+                    class="margin-toggle" /><span class="marginnote">A reflection maximal coupling of
+                    two normals with slightly different means. Notice that when \(X \ne Y\), the draws are not
+                    independent.</span>
+                <img src="img/rmc_0_1.png" alt="Reflection maximal coupling of two normals with different means" />
+            </figure>
+
+            <figure>
+                <label for="mc-diff-mean2" class="margin-toggle">&#8853;</label><input type="checkbox"
+                    id="mc-diff-mean2" class="margin-toggle" /><span class="marginnote">We saw this image earlier, but I
+                    want to show it again to emphasize that maximal couplings are <em>not</em> unique.</span>
+                <img src="img/maximal_coupling_diff_mean.png"
+                    alt="Reflection maximal coupling of two normals with different means" />
+            </figure>
+
+            <figure>
+                <label for="rmc-2d" class="margin-toggle">&#8853;</label><input type="checkbox" id="rmc-2d"
+                    class="margin-toggle" /><span class="marginnote">This is an example of some two dimensional
+                    reflection maximal couplings. Note that we can <em>only</em> see the marginal distributions here,
+                    since we are dealing with four dimensions. I am not sure how illuminating this is, but it is
+                    traditional to take a stab at visualizing four dimensions if you have a chance to do so. The
+                    covariance matrix here creates a fairly correlated Gaussian.</span>
+                <img src="img/reflection_maximal_coupling_2d.png"
+                    alt="Reflection maximal coupling of two multivariate normals with different means" />
+            </figure>
+
+        </section>
+
+        <section>
+            <h2>Conclusion</h2>
+            <p>In itself, we might just view this as a statistical curiosity, and use it to think about how
+                flexible a joint distribution can be, even after fixing the marginal distributions. In followup
+                posts, I will write more about how maximal couplings are used for unbiased MCMC.
+            </p>
+        </section>
+
+    </article>
+</body>
+<footer>
+    <!-- <script type="text/javascript">
+        document._EUGO = 'fda5b08c23a01551b892';
+        document.head.appendChild(function () {
+            var s = document.createElement('script');
+            s.src = 'https://eugo.io/eugo.js';
+            s.async = 1;
+            return s;
+        }());
+    </script> -->
+</footer>
+
+</html>

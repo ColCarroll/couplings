@@ -1,0 +1,4 @@
+*.egg-info/
+junit/
+.ipynb_checkpoints/
+pip-wheel-metadata/
