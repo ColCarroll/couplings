@@ -8,7 +8,7 @@ from scipy.special import logsumexp
 __all__ = ["total_variation", "plot_coupled_chains", "wasserstein", "mixture_of_gaussians"]
 
 
-class mixture_of_gaussians:
+class mixture_of_gaussians:  # pylint: disable=invalid-name
     """Mixture of Gaussians with the given parameters."""
 
     def __init__(self, params, probs):
@@ -37,13 +37,13 @@ class mixture_of_gaussians:
         np.random.shuffle(vals)
         return vals
 
-    def pdf(self, x):
+    def pdf(self, point):
         """Compute the pdf of the distribution at a point."""
-        return self._probs.dot([rv.pdf(x.squeeze()) for rv in self._rvs])
+        return self._probs.dot([rv.pdf(point.squeeze()) for rv in self._rvs])
 
-    def logpdf(self, x):
+    def logpdf(self, point):
         """Compute the log probability of the distribution at a point."""
-        parts = self._logp + np.atleast_2d([rv.logpdf(x.squeeze()) for rv in self._rvs])
+        parts = self._logp + np.atleast_2d([rv.logpdf(point.squeeze()) for rv in self._rvs])
         return logsumexp(parts, axis=0)
 
 
