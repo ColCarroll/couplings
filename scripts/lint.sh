@@ -9,9 +9,14 @@ python -m pydocstyle --convention=numpy "${SRC_DIR}"/couplings/
 echo "Success!"
 
 echo "Checking code style with black..."
-python -m black -l 100 --check couplings/
+python -m black -l 100 --check "${SRC_DIR}"/couplings/ "${SRC_DIR}"/test/
 echo "Success!"
 
+echo "Checking types mypy..."
+python -m mypy --ignore-missing-imports "${SRC_DIR}"/couplings/ "${SRC_DIR}"/test/
+echo "Success!"
+
+
 echo "Checking code style with pylint..."
-python -m pylint couplings/
+python -m pylint "${SRC_DIR}"/couplings/
 echo "Success!"
