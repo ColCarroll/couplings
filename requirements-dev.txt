@@ -1,6 +1,7 @@
 black
 ipykernel
 jupyter
+mypy
 nbconvert
 pandoc
 pydocstyle
