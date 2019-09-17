@@ -1,29 +1,12 @@
 """Coupled Metropolis-Hastings implementation."""
-from dataclasses import dataclass
-
 import numpy as np
 import scipy.stats as st
 
 from .maximal_couplings import ReflectionMaximalCoupling
+from .coupled_data import CoupledData
 
 
-__all__ = ["CoupledData", "metropolis_hastings", "unbiased_estimator"]
-
-
-@dataclass
-class CoupledData:
-    """Data store for MCMC sampling.
-
-    This stores samples, heuristics, diagnostics, etc, and
-    should be passed to other functions in the library.
-    """
-
-    x: np.ndarray
-    y: np.ndarray
-    x_accept: np.ndarray
-    y_accept: np.ndarray
-    meeting_time: np.ndarray
-    lag: int
+__all__ = ["metropolis_hastings", "unbiased_estimator"]
 
 
 def _metropolis_accept(log_prob, proposal, current, current_log_prob, log_unif=None):
@@ -42,14 +25,12 @@ def _metropolis_accept(log_prob, proposal, current, current_log_prob, log_unif=N
     return_val[accept] = proposal[accept]
     new_log_prob[accept] = proposal_log_prob[accept]
 
-    # print(current_log_prob.shape)
-    # print(return_val.shape, new_log_prob.shape, accept.shape)
     return return_val, new_log_prob, accept.squeeze()
 
 
 def metropolis_hastings(  # pylint: disable=too-many-locals, bad-continuation
     *, log_prob, proposal_cov, init_x, init_y, lag=1, iters=1000, chains=128, short_circuit=False
-):
+) -> CoupledData:
     """Sample from a density function using coupled Metropolis-Hastings.
 
     Reference section 4.2 of "Unbiased Markov chain Monte Carlo with couplings."
@@ -106,6 +87,9 @@ def metropolis_hastings(  # pylint: disable=too-many-locals, bad-continuation
         y_accept=np.zeros((iters - lag, chains), dtype=bool),
         meeting_time=-1 * np.ones(chains, dtype=int),
         lag=lag,
+        iters=iters,
+        dim=dim,
+        chains=chains,
     )
     if not hasattr(init_x, "shape") or init_x.shape == (dim,):
         init_x = np.tile(init_x, (chains, 1))
@@ -143,10 +127,11 @@ def metropolis_hastings(  # pylint: disable=too-many-locals, bad-continuation
         met = met.reshape((met.shape[0], -1)).all(axis=1)
         data.meeting_time[met * (data.meeting_time < 0)] = t + 1
         if short_circuit and met.all():
-            data.x = data.x[: t + 1]  # pylint: disable=invalid-name
-            data.y = data.y[: t - lag + 1]  # pylint: disable=invalid-name
+            data.x = data.x[: t + 1]
+            data.y = data.y[: t - lag + 1]
             data.x_accept = data.x_accept[: t + 1]
             data.y_accept = data.y_accept[: t - lag + 1]
+            data.iters = t + 1
             return data
     return data
 
