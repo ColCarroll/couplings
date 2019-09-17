@@ -1,8 +1,11 @@
 """Miscellaneous utilities."""
+from typing import List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as st
 from scipy.special import logsumexp
+
+from .coupled_data import CoupledData
 
 
 __all__ = ["total_variation", "plot_coupled_chains", "wasserstein", "mixture_of_gaussians"]
@@ -11,7 +14,7 @@ __all__ = ["total_variation", "plot_coupled_chains", "wasserstein", "mixture_of_
 class mixture_of_gaussians:  # pylint: disable=invalid-name
     """Mixture of Gaussians with the given parameters."""
 
-    def __init__(self, params, probs):
+    def __init__(self, params: List[Tuple[float]], probs: List[float]):
         """Construct normal distributions.
 
         Parameters
@@ -23,10 +26,10 @@ class mixture_of_gaussians:  # pylint: disable=invalid-name
 
         """
         self._probs = np.array(probs)
-        self._logp = np.log(self._probs).reshape((len(self._probs), 1))
+        self._logp = np.log(self._probs).reshape((1, len(self._probs)))
         self._rvs = [st.norm(*param) for param in params]
 
-    def rvs(self, size=1):
+    def rvs(self, size: int = 1) -> np.ndarray:
         """Sample from the random variable."""
         vals = np.concatenate(
             [
@@ -37,14 +40,19 @@ class mixture_of_gaussians:  # pylint: disable=invalid-name
         np.random.shuffle(vals)
         return vals
 
-    def pdf(self, point):
+    def pdf(self, point: np.ndarray) -> float:
         """Compute the pdf of the distribution at a point."""
-        return self._probs.dot([rv.pdf(point.squeeze()) for rv in self._rvs])
+        return self._probs.dot([rv.pdf(point) for rv in self._rvs])
 
-    def logpdf(self, point):
+    def logpdf(self, point: np.ndarray) -> float:
         """Compute the log probability of the distribution at a point."""
-        parts = self._logp + np.atleast_2d([rv.logpdf(point.squeeze()) for rv in self._rvs])
-        return logsumexp(parts, axis=0)
+        point = np.array(point)
+        if point.size > 1:
+            point = point.reshape((2, -1))
+            parts = self._logp.T + np.reshape([rv.logpdf(point) for rv in self._rvs], (2, -1))
+            return logsumexp(parts, axis=0)
+        parts = self._logp + np.array([rv.logpdf(point) for rv in self._rvs])
+        return logsumexp(parts)
 
 
 def _tv_pointwise(data):
@@ -93,7 +101,7 @@ def wasserstein(data):
     return wass
 
 
-def total_variation(data):
+def total_variation(data) -> np.ndarray:
     r"""Compute the total variation distance to the stationary distribution.
 
     See Definition 2.1 and Equation (3) from
@@ -118,7 +126,7 @@ def total_variation(data):
     return _tv_pointwise(data).mean(axis=0)
 
 
-def plot_coupled_chains(data, *, max_chains=8):  # pylint: disable=too-many-locals
+def plot_coupled_chains(data: CoupledData, *, max_chains=8):  # pylint: disable=too-many-locals
     """Plot coupled chains in 1 or more dimensions.
 
     Parameters
@@ -134,8 +142,8 @@ def plot_coupled_chains(data, *, max_chains=8):  # pylint: disable=too-many-loca
         A single matplotlib axis, or an array of axes
 
     """
-    chains = min(max_chains, data.x.shape[1])
-    dim = data.x.shape[2]
+    chains = min(max_chains, data.chains)
+    dim = data.dim
     ncols = 2 if dim == 1 else 4
     _, axes = plt.subplots(
         nrows=chains // ncols,
@@ -149,7 +157,7 @@ def plot_coupled_chains(data, *, max_chains=8):  # pylint: disable=too-many-loca
     for chain_idx, axis in enumerate(axes.ravel()):
         x_chain, y_chain = data.x[:, chain_idx, :], data.y[:, chain_idx, :]
         met = data.meeting_time[chain_idx] > 0
-        iters = len(x_chain)
+        iters = data.iters
 
         if met:
             meeting_time = data.meeting_time[chain_idx]
