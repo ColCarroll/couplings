@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>(Biased) MCMC</title>
+    <link rel="stylesheet" href="css/tufte.css" />
+    <link rel="stylesheet" href="css/latex.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async>
+    </script>
+    <style type="text/css">
+        /* Overrides for Google-code-prettify */
+        pre.prettyprint {
+            font-family: Consolas, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New;
+            padding: 10px;
+            padding-left: 1.5% !important;
+            border: 1px solid #196786;
+            background: aliceblue;
+        }
+    </style>
+
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js" async></script>
+
+</head>
+
+<body>
+    <article>
+        <div class=title style="display: inline-block">
+            <h1>(Biased) MCMC</h1>
+            <h2 class="subtitle">I thought we had these theoretical guarantees?</h2>
+            <p class="subtitle"><a href="https://colindcarroll.com">Colin Carroll</a></p>
+            <img src="img/header_bias.png" alt="Bias from initializing at 1 with a small step" />
+        </div>
+        <section>
+            <h2>Motivating unbiased MCMC</h2>
+            <p>Here is a passage from the introduction to a recent paper that could do with some unpacking:</p>
+            <blockquote>
+                <p>If one could initialize from the target distribution, usual estimators based on any Markov chain
+                    Monte Carlo would be unbiased, and one could simply average over independent chains. Except certain
+                    applications where this can be achieved with perfect simulation methods, Markov chain Monte Carlo
+                    estimators are ultimately consistent in the limit of the number of iterations. Algorithms that rely
+                    on such asymptotics face the risk of becoming obsolete if computational power continue to increase
+                    through the number of available processors and not through clock speed.</p>
+                <footer><a href="http://arxiv.org/abs/1708.03625">Unbiased Markov Chain Monte Carlo with Couplings.</a>
+                    Jacob, O’Leary, and Atchadé.
+                </footer>
+            </blockquote>
+            <p>
+                The underlying point here is that (most) MCMC is biased, but consistent. The bias is especially evident
+                in (many) short chains, but computer architecture is moving in that direction. Let's define what all
+                these words mean, and look at some plots.
+            </p>
+        </section>
+        <section>
+            <h2>What are (statistical) bias and consistency?</h2>
+            <p>
+                Suppose we have a number we would like to estimate, \(\theta\), and we have some way of producing an
+                estimate of \(\theta\). We can call that estimate \(\hat{\theta}\). Then
+                $$
+                \operatorname{bias}(\hat{\theta}) = \mathbb{E}[\hat{\theta}] - \theta
+                $$
+                is called the <em>statistical bias</em><label for="expectation"
+                    class="margin-toggle sidenote-number"></label></span><input type="checkbox" id="expectation"
+                    class="margin-toggle" /><span class="sidenote">The expectation above is over all datasets used to
+                    make the estimator, so this is a frequentist concept. Which is fine. IT'S FINE. This is often an
+                    unwieldy expectation to take: coin flipping, as usual, provides a concrete example. If we try to
+                    estimate the bias of a fair coin, \(P(H)\), and do it by observing two flips and reporting the
+                    average number of heads, then all data sets are \(\{HH, HT, TH, TT\}\), and each is equally likely.
+                    Our estimator would be \(\{1, 0.5, 0.5, 0\}\), respectively, so the expectation of our estimator
+                    over all datasets is \( 0.25 * (1 + 0.5 + 0.5 + 0) = 0.5\).</span> of the estimator
+                \(\hat{\theta}\). In case \(\operatorname{bias}(\hat{\theta}) = 0\), we call \(\hat{\theta}\) an
+                <em>unbiased estimator</em>.
+            </p>
+
+            <p>
+                A related concept is <em>consistency</em>: as our dataset grows, what happens to the expectation of our
+                estimator? Specifically, if \(\hat{\theta}_n\) is our estimator given a dataset of size \(n\), then an
+                estimator is consistent if
+                $$
+                ``\lim_{n \to \infty} \hat{\theta}_n = \theta",
+                $$
+                where the limit is in scare quotes because it looks like math but is not very precise<label
+                    for="consistent" class="margin-toggle sidenote-number"></label></span><input type="checkbox"
+                    id="consistent" class="margin-toggle" /><span class="sidenote">Note that \(\hat{\theta}_n\) is a
+                    random variable for every \(n\), so really we need to talk about this under an integral sign.
+                    See <a href="https://en.wikipedia.org/wiki/Convergence_of_random_variables">the wikipedia
+                        article</a> for details on notions of convergence. The estimator in sidenote 1 is unbiased and
+                    consistent. If the estimator was instead "5 + the number of heads divided by the number of flips",
+                    then the estimator is biased, but still consistent, since 5 is a much smaller number than
+                    \(\infty\). </span>.
+            </p>
+        </section>
+
+        <section>
+            <h2>What does this have to do with MCMC?</h2>
+            <p>Markov chain Monte Carlo (MCMC)<label for="mcmc"
+                    class="margin-toggle sidenote-number"></label></span><input type="checkbox" id="mcmc"
+                    class="margin-toggle" /><span class="sidenote">Kudos if you got here without knowing what MCMC stood
+                    for! See the first half of <a
+                        href="https://colcarroll.github.io/hamiltonian_monte_carlo_talk/bayes_talk.html">this talk</a>,
+                    or Chapter 11 of Christopher Bishop's wonderful "Pattern Recognition and Machine learning" (<a
+                        href="https://www.microsoft.com/en-us/research/people/cmbishop/">available
+                        free here</a>) for a better introduction.</span> is, broadly speaking, a way of computing
+                expectations: we have some posterior distribution of parameters we care about, \(\pi(\theta | X)\),
+                where \(X\) is some data, \(\theta\) are the parameters, and \(\pi\) is the posterior distribution. We
+                would like to compute
+                $$
+                \mathbb{E}_{\pi(\theta | X)}[f] = \int f(\theta)~d\pi(\theta | X),
+                $$
+                but instead use MCMC to sample from \(\pi(\theta | X)\), and compute
+                $$
+                \mathbb{E}_{\pi(\theta | X)}[f] \approx \frac{1}{N}\sum_{j=1}^N f(\theta_j), ~ \text{ where } \theta_j
+                \sim \pi(\theta | X)
+                $$
+            </p>
+            <p>The allure of MCMC is that these estimators are consistent: for any \(f\), the expectation converges (in
+                probability) to the true value. However, the estimators are also biased, and the bias depends on how the
+                MCMC is initialized<label for="init" class="margin-toggle sidenote-number"></label></span><input
+                    type="checkbox" id="init" class="margin-toggle" /><span class="sidenote">Recall from the opening
+                    quote that initializing with the stationary distribution results in <em>unbiased</em>
+                    estimates.</span>, as well as how long the chain runs for. If the future of computing is massively
+                parallel, then getting more mileage out of thousands of short chains (which have more bias) is a useful
+                undertaking.
+            </p>
+        </section>
+
+        <section>
+            <h2>Do you have any beautiful pictures illustrating MCMC bias?</h2>
+            <p>Boy howdy, do I!</p>
+            <p>The way to put these together is a <em>little</em> tricky:
+                <ol>
+                    <li>Put together our test distribution: a mixture of two Gaussians, centered at \(\pm3\), each with
+                        standard deviation 1.<img src="img/base_dist.png" /></li>
+                    <li>Initialize 5,000 MCMC <a
+                            href="https://colindcarroll.com/2019/08/18/very-parallel-mcmc-sampling/">very efficient MCMC
+                            samplers in parallel</a>, all at the same point, or from the same distribution.
+                    </li>
+                    <li>Run these chains for 75 steps. At step \(n\), we have 5,000 samples from the Markov chain after
+                        \(n\) steps. This is enough for a fairly accurate histogram.
+                    </li>
+                    <li>Plot all 75 histograms as <a href="https://luiscarli.com/joyplot/">a ridge plot</a>, to see how
+                        the Markov chain moves towards the stationary distribution.
+                    </li>
+                </ol>
+            </p>
+            <figure>
+                <label for="init_0" class="margin-toggle">&#8853;</label><input type="checkbox" id="init_0"
+                    class="margin-toggle" /><span class="marginnote">We start by initializing all 5,000 chains at 0, and
+                    use a pretty well tuned step size to get to the stationary distribution fairly quickly.</span>
+                <img src="img/init_0.png" alt="Bias from initializing at 0." />
+            </figure>
+
+            <figure>
+                <label for="init_3" class="margin-toggle">&#8853;</label><input type="checkbox" id="init_3"
+                    class="margin-toggle" /><span class="marginnote">If we instead initialize at one of the modes, the
+                    convergence to the static distribution goes more slowly (and is not yet done after 75 steps).</span>
+                <img src="img/init_3.png" alt="Bias from initializing at 3." />
+            </figure>
+
+            <figure>
+                <label for="init_10" class="margin-toggle">&#8853;</label><input type="checkbox" id="init_10"
+                    class="margin-toggle" /><span class="marginnote">Let's get crazy and just initialize at 10. The
+                    first few steps you can see that Metropolis-Hastings accepts any proposal towards 0, and rejects
+                    (almost) any away from 0, giving a pretty funny shaped distribution. It finds the first mode pretty
+                    quickly, and then starts to slowly explore the second mode.</span>
+                <img src="img/init_10.png" alt="Bias from initializing at 10." />
+            </figure>
+
+            <figure>
+                <label for="init_n33" class="margin-toggle">&#8853;</label><input type="checkbox" id="init_n33"
+                    class="margin-toggle" /><span class="marginnote">If we initialize with a distribution instead,
+                    the behavior is a bit better: here we initialize the chains with a normal distribution centered
+                    at 3.</span>
+                <img src="img/init_n33.png" alt="Bias from initializing with a normal distribution." />
+            </figure>
+
+            <figure>
+                <label for="init_1_small_cov" class="margin-toggle">&#8853;</label><input type="checkbox"
+                    id="init_1_small_cov" class="margin-toggle" /><span class="marginnote">Initializing at a reasonable
+                    spot, with a poorly tuned step size can lead to a bias which may be hard to detect. Keep in mind
+                    that if we ran the MCMC chain for thousands, millions, billions of steps, these distributions would
+                    match our stationary distribution, but maybe we have something better to do with our time.</span>
+                <img src="img/init_1_small_cov.png" alt="Bias from initializing at 1 with a small step" />
+            </figure>
+
+        </section>
+
+        <section>
+            <h2>Conclusion</h2>
+            <p>
+                This post showed what bias and consistency are, and gave some intuition for MCMC samplers being
+                consistent and biased. Hopefully we have some impression that running thousands of very short MCMC
+                chains has more bias than running just a few long MCMC chians.
+            </p>
+            <p> Remember that our entire goal is to compute \(\mathbb{E}_{\pi(\theta | X)}[f]\), and we will show in the
+                next post how to use the <a href="https://github.com/ColCarroll/couplings">couplings</a> library to make
+                an unbiased estimate of this using MCMC.
+            </p>
+        </section>
+
+    </article>
+</body>
+<!-- <footer>
+    <script type="text/javascript">
+        document._EUGO = 'f7535ab8d8bce9657bb0';
+        document.head.appendChild(function () {
+            var s = document.createElement('script');
+            s.src = 'https://eugo.io/eugo.js';
+            s.async = 1;
+            return s;
+        }());
+    </script>
+</footer> -->
+
+</html>
