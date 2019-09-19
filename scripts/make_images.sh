@@ -11,6 +11,7 @@ SRC_DIR=${SRC_DIR:-$(pwd)}
 NOTEBOOKS=(
     "misc_figures.ipynb"  # fun figures
     "maximal_coupling_images.ipynb"  # images related to maximal couplings
+    "biased_mcmc.ipynb"  # images related to biased mcmc
 )
 
 for ipynb in "${NOTEBOOKS[@]}"; do
